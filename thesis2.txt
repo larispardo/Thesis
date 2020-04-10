@@ -1,0 +1,21 @@
+BasicGame
+  SpriteSet
+    avatar  > MovingAvatar img=oryx/slime3
+    enemy > Immovable img=oryx/slime2
+    floor > Immovable img=newset/floor2 hidden=True
+    wall > Immovable img=oryx/wall3 autotiling=True
+    goal  > Immovable color=GREEN img=oryx/slime6
+  LevelMapping
+    g > floor goal
+    1 > floor enemy
+    A > floor avatar
+    w > wall
+    . > floor
+  InteractionSet
+    avatar wall > stepBack
+    avatar enemy > killSprite scoreChange=-1
+    wall enemy > stepBack
+    goal avatar  > killSprite scoreChange=1
+  TerminationSet
+    SpriteCounter stype=goal    limit=0 win=True
+    SpriteCounter stype=avatar win=False
