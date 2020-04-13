@@ -1,4 +1,8 @@
 import numpy as np
+import createLevels
+import os
+import math
+
 '''
     TODO: Check the amount of enemies when creating them, they can have different attributes depending 
     on their class. 
@@ -23,7 +27,7 @@ levelMap = {'goal': 'g > floor goal',
             'enemy2': '2 > floor enemy2',
             'enemy3': '3 > floor enemy3',
             'resource': '4 > floor resource',
-            'treasure': '5 > floor check',
+            'treasure': '5 > floor treasure',
             'avatar': 'A > floor avatar',
             'wall': 'w > wall',
             'floor': '. > floor'}
@@ -31,7 +35,7 @@ levelMap = {'goal': 'g > floor goal',
 interactionSet = {'avwa': 'avatar wall > stepBack',
                   'swen': 'enemy sword > killSprite scoreChange=2',
                   'enen': 'enemy enemy > stepBack',  # Need to check what is the best way to
-                                                     # handle this section for multiple enemies.
+                  # handle this section for multiple enemies.
                   'aven': 'avatar enemy > killSprite scoreChange=-1',
                   'trav': 'treasure avatar > killSprite scoreChange=1',
                   'enwa': 'enemy wall > stepBack',
@@ -40,26 +44,26 @@ interactionSet = {'avwa': 'avatar wall > stepBack',
                   'avgo': 'goal avatar  > killSprite scoreChange=2',
                   'avgoR': 'goal avatar  > killIfOtherHasMore resource=resource limit='}
 
-terminationSet = {'goal':'SpriteCounter stype=goal    limit=0 win=True',
-                  'enemy':'SpriteCounter stype=enemy limit=0  win=True',
-                  'avatar':'SpriteCounter stype=avatar win=False'}
-
+terminationSet = {'goal': 'SpriteCounter stype=goal    limit=0 win=True',
+                  'enemy': 'SpriteCounter stype=enemy limit=0  win=True',
+                  'avatar': 'SpriteCounter stype=avatar win=False'}
 
 sections = ['SpriteSet', 'LevelMapping', 'InteractionSet', 'TerminationSet']
+
 
 def SelectGame(games):
     ## uniformly random chooses a game from the options
     return np.random.choice(games, size=1)[0]
 
 
-def ChooseAmountEnemies(maximum = 2, diff = 0):
+def ChooseAmountEnemies(maximum=2, diff=0):
     import math
     return min(maximum, math.floor(np.random.random() * diff)) + 1
 
 
 def AddCheckpoint():
-    global  gameSprites, gameInteractions
-    if (np.random.random() < probExtra):
+    global gameSprites, gameInteractions
+    if np.random.random() < probExtra:
         del spriteSet['checkpoint']
     else:
         gameSprites += ['checkpoint']
@@ -69,7 +73,7 @@ def AddCheckpoint():
 def AddAvatarType(avType):
     global spriteSet, avatarTypes
     ty = np.random.choice(avType, size=1)[0]
-    spriteSet['avatar'] = spriteSet['avatar']+avatarTypes[ty]+ ' '
+    spriteSet['avatar'] = spriteSet['avatar'] + avatarTypes[ty] + ' '
 
 
 '''def CheckParameters(ty):
@@ -81,7 +85,6 @@ def AddAvatarType(avType):
     else:
         parameter = ''
     return parameter'''
-
 
 '''def AddEnemies(amount, enTypes, proba = None):
     global spriteSet, enemies, spriteTypes, possibleSlimeSprites, gameInteractions
@@ -109,6 +112,8 @@ def AddAvatarType(avType):
                 ty = spriteTypes[ty]
             parameter = CheckParameters(ty)
             spriteSet['enemy'] += enemies[enemy] + ty + ' ' + parameter + ' ' + 'img=' + sprites.pop()'''
+
+
 def SelectEnemyTypes(types, amount):
     global isGoal, isMissile, difficulty, gameInteractions  # using it as global variable.
     slowCool = 8  # From easier to most difficult
@@ -127,34 +132,43 @@ def SelectEnemyTypes(types, amount):
             types.remove(ty)
             typeVariables += [[None]]
         elif ty == 'RandomNPC':
-            cooldown = slowCool - min(slowCool-fastCool, round(np.random.random() * difficulty * 2))
+            cooldown = round(slowCool - min(slowCool - fastCool, np.random.random() * difficulty * 2), 3)
             typeVariables += [[('cooldown', cooldown)]]
+            key = 'enwa' + str(i + 1)
+            interactionSet[key] = 'enemy' + str(i + 1) + ' wall > stepBack'
+            gameInteractions += [key]
+
         elif ty == 'Missile':  # Now redundant, but could help to keep track of all variable types.
             speedScale = 30
-            speed = minSpeed + min(maxSpeed - minSpeed, round(np.random.random()/speedScale * difficulty,3))
+            speed = round(minSpeed + min(maxSpeed - minSpeed, np.random.random() / speedScale * difficulty), 3)
             orientation = np.random.choice(orientations, size=1)[0]
             typeVariables += [[('orientation', orientation), ('speed', speed)]]
             isMissile = True
-            gameInteractions += ['enwaA']
+            key = 'enwa' + str(i + 1)
+            interactionSet[key] = 'enemy' + str(i + 1) + ' wall > reverseDirection'
+            gameInteractions += [key]
     return gametypes, typeVariables
+
 
 def SetResource():
     global difficulty, maxDifficulty
     import math
     minResources = 3
-    goalResources = minResources + math.floor(np.random.random()*difficulty)
-    limitResources = goalResources + math.floor(np.random.random()*(maxDifficulty-difficulty))
+    goalResources = minResources + math.floor(np.random.random() * difficulty)
+    limitResources = goalResources + math.floor(np.random.random() * (maxDifficulty - difficulty) +
+                                                minResources * (maxDifficulty - difficulty))
     return limitResources, goalResources
 
-def WriteRules(file="thesis0.txt"):
+
+def WriteRules(file, path=""):
     global differentEnemies, avatarType, enemyTy, enemyVar, gameSprites, \
         gameTerminations, gameInteractions, possibleSlimeSprites
     print(differentEnemies)
     space = '  '
-    f = open(file, "w+")
+    f = open(path + file + '.txt', "w+")
     f.write('BasicGame\n')
     for section in sections:
-        f.write(space+section+'\n')
+        f.write(space + section + '\n')
         if section == 'SpriteSet':
             for value in gameSprites:
                 isEnemy = False
@@ -162,45 +176,53 @@ def WriteRules(file="thesis0.txt"):
                     if avatarType != 'ShootAvatar':
                         spriteSet[value] += avatarType + ' '
                     else:
-                        spriteSet[value] += avatarType + ' stype=sword '
-                        gameInteractions += ['swen']
+                        if 'swen' not in gameInteractions:
+                            spriteSet[value] += avatarType + ' stype=sword '
+                            gameInteractions += ['swen']
+                            gameSprites += ['sword']
                 elif value == 'enemy':
                     isEnemy = True
-                    f.write(space*2+spriteSet[value]+'\n')
+                    f.write(space * 2 + spriteSet[value] + '\n')
                 print(value, possibleSlimeSprites, value in possibleSlimeSprites)
                 if (value in possibleSlimeSprites) and not isEnemy:
-                    f.write(space*2+spriteSet[value]+'img='+sprites.pop()+'\n')
+                    f.write(space * 2 + spriteSet[value] + 'img=' + sprites.pop() + '\n')
                 elif isEnemy:
-                    for i in range(1,differentEnemies+1):
-                        if enemyVar[i-1][0] is not None:
-                            print("HERE: " + enemyTy[i-1])
-                            variables = [x[0] + '=' + str(x[1]) for x in enemyVar[i-1]]
+                    for i in range(1, differentEnemies + 1):
+                        if enemyVar[i - 1][0] is not None:
+                            print("HERE: " + enemyTy[i - 1])
+                            variables = [x[0] + '=' + str(x[1]) for x in enemyVar[i - 1]]
                             variables = ' '.join(variables)
-                            f.write(space * 3 + enemies[value+str(i)]+ enemyTy[i-1] + ' ' + variables
+                            f.write(space * 3 + enemies[value + str(i)] + enemyTy[i - 1] + ' ' + variables
                                     + ' ' + 'img=' + sprites.pop() + '\n')
                         else:
-                            f.write(space * 3 + enemies[value + str(i)] + enemyTy[i-1] + ' '
+                            f.write(space * 3 + enemies[value + str(i)] + enemyTy[i - 1] + ' '
                                     + 'img=' + sprites.pop() + '\n')
                 else:
-                    f.write(space * 2 + spriteSet[value]+'\n')
+                    f.write(space * 2 + spriteSet[value] + '\n')
         if section == 'LevelMapping':
             for value in gameSprites:
                 if value == 'sword':
                     continue
                 if value == 'enemy':
-                    for i in range(1,differentEnemies+1):
-                        f.write(space * 2 + levelMap[value+str(i)] + '\n')
+                    for i in range(1, differentEnemies + 1):
+                        f.write(space * 2 + levelMap[value + str(i)] + '\n')
                 else:
-                    f.write(space * 2 + levelMap[value]+'\n')
+                    f.write(space * 2 + levelMap[value] + '\n')
         if section == 'InteractionSet':
             for value in gameInteractions:
-                f.write(space * 2 + interactionSet[value]+'\n')
+                f.write(space * 2 + interactionSet[value] + '\n')
         if section == 'TerminationSet':
             for value in gameTerminations:
-                f.write(space * 2 + terminationSet[value]+'\n')
+                f.write(space * 2 + terminationSet[value] + '\n')
     f.close()
 
 
+maxDifficulty = 5
+difficulty = 1
+gameNumber = 2
+probabilityTreasures = 0.1
+probabilityGoal = 0.8
+probResourceGGoal = 0.2
 
 # Could we make this general? I say yes, just make sure the general structure is saved.
 sprites = ['oryx/slime1', 'oryx/slime2', 'oryx/slime3', 'oryx/slime4', 'oryx/slime5', 'oryx/slime6']
@@ -209,118 +231,97 @@ np.random.shuffle(indices)
 sprites = [sprites[i] for i in indices]
 avatarTypes = ['ShootAvatar', 'MovingAvatar']
 gameSprites = ['floor', 'wall', 'enemy', 'avatar']
-gameInteractions = ['avwa', 'aven', 'enwa']
+gameInteractions = ['avwa', 'aven']
 enemyTypes = ['Immovable', 'RandomNPC', 'Missile']
 # counter = [2, 4, 8]  # Counter in randomnpc class.
-possibleSlimeSprites = ['avatar', 'enemy', 'goal', 'checkpoint', 'resource']
+possibleSlimeSprites = ['avatar', 'enemy', 'goal', 'treasure', 'resource']
 specialTypeSprites = ['avatar', 'enemy']
 gameTerminations = ['avatar']
 
 isGoal = False
 isResource = False
 isMissile = False
-
-maxDifficulty = 5
-difficulty = 4
-probabilityTreasures = 0.1
-probabilityGoal = 0.8
-probResourceGGoal = 0.2
+isTreasure = False
 if np.random.random() < probabilityGoal:
     isGoal = True
     gameSprites += ['goal']
     gameTerminations += ['goal']
-    if np.random.random() < probResourceGGoal: # total probability of 0.16
+    if np.random.random() < probResourceGGoal:  # total probability of 0.16
         isResource = True
         gameSprites += ['resource']
         limitR, goalR = SetResource()
-        spriteSet['resource'] += str(limitR)
+        spriteSet['resource'] += str(limitR) + ' '
         interactionSet['avgoR'] += str(goalR)
         gameInteractions += ['avre', 'avgoR']
     else:
         gameInteractions += ['avgo']
 else:
-    gameTerminations += ['enemy'] # TODO: Make this also have a probability of exist in certain difficulties.
+    gameTerminations += ['enemy']  # TODO: Make this also have a probability of exist in certain difficulties.
 
 if np.random.random() < probabilityTreasures:
+    isTreasure = True
     gameSprites += ['treasure']
     gameInteractions += ['trav']
 
 differentEnemies = ChooseAmountEnemies(diff=difficulty)
 if differentEnemies > 1:
     gameInteractions += ['enen']
-#spriteWithTypes = ['avatar']
-#spriteWithTypes += ['enemy'+str(i+1) for i in range(differentEnemies)]
+# spriteWithTypes = ['avatar']
+# spriteWithTypes += ['enemy'+str(i+1) for i in range(differentEnemies)]
 
 # TODO: think what is better to be the avatar type when increasing difficulty
-avatarType = np.random.choice(avatarTypes, size=1)[0]
+tmpAvatarTy = avatarTypes.copy()
+tmpAvatarTy.remove('MovingAvatar')
+avatarType = np.random.choice(tmpAvatarTy, size=1)[0]
 
 enemyTy, enemyVar = SelectEnemyTypes(enemyTypes, differentEnemies)
-#goTypes += enemyTy
+# goTypes += enemyTy
+gameName = 'thesis0'+str(gameNumber)
+version = 0
+path01 = "/Users/larispardo/Downloads/GVGAI_GYM/gym_gvgai/envs/games/" + gameName + "_v" + str(version) + "/"
+path02 = "/Users/larispardo/Downloads/GVGAI_GYM/gym_gvgai/envs/games/" + gameName + "_v" + str(version + 1) + "/"
 
-'''gameTypes = ['moveGoal', 'kill', 'avoid', 'harvest']
+# Create target directory & all intermediate directories if don't exists
+try:
+    os.makedirs(path01)
+    print("Directory ", path01, " Created ")
+except FileExistsError:
+    print("Directory ", path01, " already exists")
+try:
+    os.makedirs(path02)
+    print("Directory ", path02, " Created ")
+except FileExistsError:
+    print("Directory ", path02, " already exists")
+WriteRules(gameName, path=path01)
+WriteRules(gameName, path=path02)
 
+levelMap = {'goal': 'g',
+            'enemy': '1',
+            'enemy1': '1',
+            'enemy2': '2',
+            'enemy3': '3',
+            'resource': '4',
+            'treasure': '5',
+            'avatar': 'A',
+            'wall': 'w',
+            'floor': '.'}
 
-game = SelectGame(gameTypes)
-# Only optional choice is to have Checkpoint
-optionalSets = ['checkpoint']
-probExtra = 0.9
+gridSize = (20, 20)
+onlyOne = ['avatar', 'goal']
 
-if game == 'moveGoal':
-    print(game)
-    gameTerminations = ['goal', 'avatar']
-    gameSprites += ['goal']
-    gameInteractions += ['avgo']
-    AddCheckpoint()
-    possibleEnemyTypes = [1,2]
-    probabilityEnemyTypes = [0.9,0.1]
-    possibleAvatarTypes = [0]  # probably set avatar > than 1 possible case
-    amountEnemies = ChooseAmountEnemies(maximum=2, prob=[0.8, 0.2])
-    AddAvatarType(possibleAvatarTypes)
-    AddEnemies(amountEnemies, possibleEnemyTypes)
-    del spriteSet['resource']
-    del spriteSet['sword']
-elif game == 'avoid':
-    print(game)
-    gameTerminations = ['goal', 'avatar']
-    gameSprites += ['goal']
-    gameInteractions += ['avgo', 'enwaA']
-    gameInteractions.remove('enwa')
-    AddCheckpoint()
-    possibleEnemyTypes = [0]
-    possibleAvatarTypes = [0]
-    amountEnemies = ChooseAmountEnemies(maximum=2, prob=[0.1, 0.9])
-
-    AddAvatarType(possibleAvatarTypes)
-    AddEnemies(amountEnemies, possibleEnemyTypes)
-    del spriteSet['resource']
-    del spriteSet['sword']
-elif game == 'harvest':
-    print(game)
-    gameTerminations = ['goal', 'avatar']
-    gameSprites += ['goal', 'resource']
-    gameInteractions += ['avre', 'avgoR']
-    possibleEnemyTypes = [1] # only immovable
-    possibleAvatarTypes = [0]
-    amountEnemies = 1
-
-    AddAvatarType(possibleAvatarTypes)
-    AddEnemies(amountEnemies, possibleEnemyTypes)
-    del spriteSet['sword']
-    del spriteSet['checkpoint']
-elif game == 'kill':
-    print(game)
-    gameTerminations = ['enemy', 'avatar']
-    gameSprites += ['sword']
-    gameInteractions += ['swen']
-    AddCheckpoint()
-    possibleEnemyTypes = [2]  # only random
-    possibleAvatarTypes = [1]
-    amountEnemies = ChooseAmountEnemies()
-
-    AddAvatarType(possibleAvatarTypes)
-    AddEnemies(amountEnemies, possibleEnemyTypes)
-    del spriteSet['goal']
-    del spriteSet['resource']'''
-
-WriteRules()
-
+enemyTy = ['enemy' + str(i + 1) for i in range(differentEnemies)]
+gridSize = (20, 20)
+version = 0
+for i in range(10):
+    width, height, enemyAmount, resourceAmount, treasuresAmount = createLevels.GetDifficultyParameters(math.ceil(i / 2),
+                                                                                                       gridSize=gridSize,
+                                                                                                       isGoal=isGoal)
+    level = createLevels.CreateLevel(gridSize, width, height, enemyAmount, resourceAmount,
+                                     treasuresAmount, levelMap=levelMap, gridSize=gridSize,
+                                     enemyTypes=enemyTy, isGoal=isGoal, isResource=isResource, isTreasure=isTreasure)
+    if i % 5 == 0:
+        version += 1
+    if version == 1:
+        createLevels.WriteLevel(level, game=gameName, lvl=i % 5, path=path01)
+    else:
+        createLevels.WriteLevel(level, game=gameName, lvl=i % 5, path=path02)

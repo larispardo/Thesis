@@ -15,7 +15,7 @@ def show_state(env, step=0, score=""):
     time.sleep(.1)
     plt.close()
 
-env = gym.make("gvgai-thesis1-lvl3-v0") # Acá puedes cambiar el nivel que quieres jugar (lvl0, lvl1, ...).
+env = gym.make("gvgai-thesis01-lvl1-v1") # Acá puedes cambiar el nivel que quieres jugar (lvl0, lvl1, ...).
 
 '''
 env.reset()
@@ -95,7 +95,6 @@ print("Press keys 1 2 3 ... to take actions 1 2 3 ...")
 print("No keys pressed is taking action 0")
 val = 0
 while 1:
-
     window_still_open = rollout(env)
     if window_still_open:
         env.close()

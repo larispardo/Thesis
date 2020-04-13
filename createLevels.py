@@ -1,74 +1,23 @@
 import numpy as np
 
-def GetDifficultyParameters(difficulty):
+def GetDifficultyParameters(difficulty, gridSize, isGoal):
     import math
     maxTreasures = 4
+    # TODO: 18 is assuming the grid is 20 by 20
     width = math.floor((gridSize[0] - 18) * difficulty + 4 * np.random.random()) + 5
     height = math.floor((gridSize[1] - 18) * difficulty + 4 * np.random.random()) + 5
-    enemyAmount = difficulty + math.floor(np.random.random()*difficulty/2)
+    if isGoal:
+        enemyAmount = difficulty + math.floor(np.random.random()*difficulty/2)
+    else:
+        enemyAmount = 1 + difficulty + math.floor(np.random.random()*difficulty)
     # TODO: replace Magic numbers with resource amount
     resourceAmount = 5 + (5-round(difficulty*np.random.random()))
     treasuresAmount = np.random.randint(maxTreasures)
     return width, height, enemyAmount, resourceAmount, treasuresAmount
-'''
-def CreateLevel(grid, width, height, enemies, resources, treasures):
-    global onlyOne, levelMap
-    import math
-    levelm = levelMap.copy()
-    del levelm['wall']
-    if enemies == 0:
-        for keys in levelMap.keys():
-            if 'enemy' in keys:
-                del levelm[keys]
-    if resources == 0:
-        del levelm['resource']
-    if treasures == 0:
-        del levelm['treasure']
 
-    level = []
-    vertMid = math.floor(grid[0]/2)-1
-    horMid = math.floor(grid[1]/2)-1
-    realVMid = math.floor(height/2)
-    realHMid = math.floor(width/2)
-    totenemies = 0
-    totresources = 0
-    tottreasures = 0
-    vertPlayArea = (vertMid - realVMid, vertMid + (height - realVMid))
-    horPlayArea = (horMid - realHMid, horMid + (width - realHMid))
-    # TODO: Change this to make the random variable be dependent on position instead of the list of keys
-    #  Use range 10
-    for row in range(grid[0]):
-        if row <= vertPlayArea[0] or row > vertPlayArea[1]:
-            level += [levelMap['wall']]*grid[1]+['\n']
-            continue
-        for col in range(grid[1]):
-            if col <= horPlayArea[0] or col > horPlayArea[1]:
-                level += [levelMap['wall']]
-            else:
-                key = np.random.choice(list(levelm.keys()), size=1)[0]
-                level += [levelm[key]]
-                if key in onlyOne:
-                    del levelm[key]
-                elif 'enemy' in key:
-                    totenemies += 1
-                    if totenemies == enemies:
-                        for keys in levelMap.keys():
-                            if 'enemy' in keys:
-                                del levelm[keys]
-                elif 'resource' in key:
-                    totresources += 1
-                    if totresources == resources:
-                        del levelm[key]
-                elif 'treasure' in key:
-                    tottreasures += 1
-                    if tottreasures == treasures:
-                        del levelm[key]
-        level += ['\n']
-    return level
-'''
 
-def CreateLevel(grid, width, height, enemies, resources, treasures):
-    global onlyOne, levelMap
+def CreateLevel(grid, width, height, enemies, resources, treasures, enemyTypes,
+                gridSize, levelMap, isGoal, isTreasure, isResource):
     import math
     levelm = levelMap.copy()
     del levelm['wall']
@@ -95,20 +44,28 @@ def CreateLevel(grid, width, height, enemies, resources, treasures):
         level += ['\n']
     vertical = list(range(vertPlayArea[0], vertPlayArea[1]))
     horizontal = list(range(horPlayArea[0], horPlayArea[1]))
-    avPos = GetPositions(1, vertical, horizontal, goPositions, level, ['avatar'])
+    avPos = GetPositions(1, vertical, horizontal, goPositions, level, ['avatar'],
+                         gridSize=gridSize, levelMap=levelMap)
     goPositions += avPos
-    goalPos = GetPositions(1, vertical, horizontal, goPositions, level, ['goal'])
-    goPositions += goalPos
-    enPos = GetPositions(enemies, vertical, horizontal, goPositions, level, ['enemy'])
+    enPos = GetPositions(enemies, vertical, horizontal, goPositions, level, enemyTypes,
+                         gridSize=gridSize, levelMap=levelMap)
     goPositions += enPos
-    trPos = GetPositions(treasures, vertical, horizontal, goPositions, level, ['treasure'])
-    goPositions += trPos
-    rePos = GetPositions(resources, vertical, horizontal, goPositions, level, ['resource'])
-    goPositions += rePos
+    if isGoal:
+        goalPos = GetPositions(1, vertical, horizontal, goPositions, level, ['goal'],
+                               gridSize=gridSize, levelMap=levelMap)
+        goPositions += goalPos
+    if isTreasure:
+        trPos = GetPositions(treasures, vertical, horizontal, goPositions, level, ['treasure'],
+                             gridSize=gridSize, levelMap=levelMap)
+        goPositions += trPos
+    if isResource:
+        rePos = GetPositions(resources, vertical, horizontal, goPositions, level, ['resource'],
+                             gridSize=gridSize, levelMap=levelMap)
+        goPositions += rePos
     return level
 
-def GetPositions(amount, vpos, hpos, goPos, level, keyVals):
-    global gridSize, levelMap
+
+def GetPositions(amount, vpos, hpos, goPos, level, keyVals, gridSize, levelMap):
     # TODO: now is not impossible to get all values in same line blocking avatar if all are enemies.
     vertPos = np.random.choice(vpos, size=amount)
     horPos = np.random.choice(hpos, size=amount)
@@ -119,12 +76,21 @@ def GetPositions(amount, vpos, hpos, goPos, level, keyVals):
             pos = positions[i]
             tmpPositions = positions.copy()
             tmpPositions.remove(pos)
-            if pos in goPos or pos in tmpPositions:
+            if (pos in goPos) or (pos in tmpPositions):
                 vtmp = np.random.choice(vpos, size=1)[0]
                 htmp = np.random.choice(hpos, size=1)[0]
                 positions[i] = (vtmp, htmp)
-            else:
-                counter += 1
+                continue
+            elif len(goPos) != 0:
+                if goPos[0][0] - 1 <= pos[0] <= goPos[0][0] + 1 and goPos[0][1] - 1 <= pos[1] <= goPos[0][1] + 1:
+                    print(pos, goPos[0])
+                    # This assumes that the avatar position is in gpos[0] and
+                    # is to make the avatar do not have items in a surrounding square.
+                    vtmp = np.random.choice(vpos, size=1)[0]
+                    htmp = np.random.choice(hpos, size=1)[0]
+                    positions[i] = (vtmp, htmp)
+                    continue
+            counter += 1
         if counter == len(positions):
             break
     for pos in positions:
@@ -134,14 +100,14 @@ def GetPositions(amount, vpos, hpos, goPos, level, keyVals):
     return positions
 
 
-def WriteLevel(level, game="thesis0", lvl = 0):
-    file = game + "_lvl" + str(lvl) + ".txt"
+def WriteLevel(level, path="", game="thesis0", lvl = 0):
+    file = path + game + "_lvl" + str(lvl) + ".txt"
     f = open(file, "w+")
     f.write(''.join(level))
     f.close()
 
 
-levelMap = {'goal': 'g',
+'''levelMap = {'goal': 'g',
             'enemy': '1',
             'enemy1': '1',
             'enemy2': '2',
@@ -156,5 +122,5 @@ gridSize = (20, 20)
 onlyOne = ['avatar', 'goal']
 width, height, enemyAmount, resourceAmount, treasuresAmount = GetDifficultyParameters(5)
 level = CreateLevel(gridSize, width, height, enemyAmount, resourceAmount, treasuresAmount)
-WriteLevel(level, lvl=4)
+WriteLevel(level, lvl=4)'''
 
