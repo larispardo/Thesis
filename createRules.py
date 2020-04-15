@@ -160,15 +160,13 @@ def SetResource():
     return limitResources, goalResources
 
 
-def WriteRules(file, path=""):
+def createRules():
     global differentEnemies, avatarType, enemyTy, enemyVar, gameSprites, \
         gameTerminations, gameInteractions, possibleSlimeSprites
-    print(differentEnemies)
     space = '  '
-    f = open(path + file + '.txt', "w+")
-    f.write('BasicGame\n')
+    rules = ''
     for section in sections:
-        f.write(space + section + '\n')
+        rules += space + section + '\n'
         if section == 'SpriteSet':
             for value in gameSprites:
                 isEnemy = False
@@ -182,44 +180,53 @@ def WriteRules(file, path=""):
                             gameSprites += ['sword']
                 elif value == 'enemy':
                     isEnemy = True
-                    f.write(space * 2 + spriteSet[value] + '\n')
+                    rules += space * 2 + spriteSet[value] + '\n'
                 print(value, possibleSlimeSprites, value in possibleSlimeSprites)
                 if (value in possibleSlimeSprites) and not isEnemy:
-                    f.write(space * 2 + spriteSet[value] + 'img=' + sprites.pop() + '\n')
+                    rules += space * 2 + spriteSet[value] + 'img=' + sprites.pop() + '\n'
                 elif isEnemy:
                     for i in range(1, differentEnemies + 1):
                         if enemyVar[i - 1][0] is not None:
                             print("HERE: " + enemyTy[i - 1])
                             variables = [x[0] + '=' + str(x[1]) for x in enemyVar[i - 1]]
                             variables = ' '.join(variables)
-                            f.write(space * 3 + enemies[value + str(i)] + enemyTy[i - 1] + ' ' + variables
-                                    + ' ' + 'img=' + sprites.pop() + '\n')
+                            rules += space * 3 + enemies[value + str(i)] + enemyTy[i - 1] + ' ' + variables \
+                                     + ' ' + 'img=' + sprites.pop() + '\n'
                         else:
-                            f.write(space * 3 + enemies[value + str(i)] + enemyTy[i - 1] + ' '
-                                    + 'img=' + sprites.pop() + '\n')
+                            rules += space * 3 + enemies[value + str(i)] + enemyTy[i - 1] + ' ' \
+                                     + 'img=' + sprites.pop() + '\n'
                 else:
-                    f.write(space * 2 + spriteSet[value] + '\n')
-        if section == 'LevelMapping':
+                    rules += space * 2 + spriteSet[value] + '\n'
+        elif section == 'LevelMapping':
             for value in gameSprites:
                 if value == 'sword':
                     continue
                 if value == 'enemy':
                     for i in range(1, differentEnemies + 1):
-                        f.write(space * 2 + levelMap[value + str(i)] + '\n')
+                        rules += space * 2 + levelMap[value + str(i)] + '\n'
                 else:
-                    f.write(space * 2 + levelMap[value] + '\n')
+                    rules += space * 2 + levelMap[value] + '\n'
         if section == 'InteractionSet':
             for value in gameInteractions:
-                f.write(space * 2 + interactionSet[value] + '\n')
+                rules += space * 2 + interactionSet[value] + '\n'
         if section == 'TerminationSet':
             for value in gameTerminations:
-                f.write(space * 2 + terminationSet[value] + '\n')
+                rules += space * 2 + terminationSet[value] + '\n'
+    return rules
+
+
+def WriteRules(file, rules, path=""):
+    print(differentEnemies)
+
+    f = open(path + file + '.txt', "w+")
+    f.write('BasicGame\n')
+    f.write(rules)
     f.close()
 
 
 maxDifficulty = 5
-difficulty = 1
-gameNumber = 2
+difficulty = 2
+gameNumber = 3
 probabilityTreasures = 0.1
 probabilityGoal = 0.8
 probResourceGGoal = 0.2
@@ -257,6 +264,8 @@ if np.random.random() < probabilityGoal:
         gameInteractions += ['avgo']
 else:
     gameTerminations += ['enemy']  # TODO: Make this also have a probability of exist in certain difficulties.
+    #tmpAvatarTy = avatarTypes.copy()
+    avatarTypes.remove('MovingAvatar')
 
 if np.random.random() < probabilityTreasures:
     isTreasure = True
@@ -270,13 +279,14 @@ if differentEnemies > 1:
 # spriteWithTypes += ['enemy'+str(i+1) for i in range(differentEnemies)]
 
 # TODO: think what is better to be the avatar type when increasing difficulty
-tmpAvatarTy = avatarTypes.copy()
-tmpAvatarTy.remove('MovingAvatar')
-avatarType = np.random.choice(tmpAvatarTy, size=1)[0]
+
+avatarType = np.random.choice(avatarTypes, size=1)[0]
 
 enemyTy, enemyVar = SelectEnemyTypes(enemyTypes, differentEnemies)
 # goTypes += enemyTy
-gameName = 'thesis0'+str(gameNumber)
+rules = createRules()
+
+gameName = 'thesis0' + str(gameNumber)
 version = 0
 path01 = "/Users/larispardo/Downloads/GVGAI_GYM/gym_gvgai/envs/games/" + gameName + "_v" + str(version) + "/"
 path02 = "/Users/larispardo/Downloads/GVGAI_GYM/gym_gvgai/envs/games/" + gameName + "_v" + str(version + 1) + "/"
@@ -292,8 +302,8 @@ try:
     print("Directory ", path02, " Created ")
 except FileExistsError:
     print("Directory ", path02, " already exists")
-WriteRules(gameName, path=path01)
-WriteRules(gameName, path=path02)
+WriteRules(gameName, rules, path=path01)
+WriteRules(gameName, rules, path=path02)
 
 levelMap = {'goal': 'g',
             'enemy': '1',
