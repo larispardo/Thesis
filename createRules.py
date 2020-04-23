@@ -2,6 +2,7 @@ import numpy as np
 import createLevels
 import os
 import math
+import sys
 
 '''
     TODO: Check the amount of enemies when creating them, they can have different attributes depending 
@@ -58,6 +59,7 @@ def SelectGame(games):
 
 def ChooseAmountEnemies(maximum=2, diff=0):
     import math
+    print(diff)
     return min(maximum, math.floor(np.random.random() * diff)) + 1
 
 
@@ -172,12 +174,11 @@ def createRules():
                 isEnemy = False
                 if value == 'avatar':
                     if avatarType != 'ShootAvatar':
-                        spriteSet[value] += avatarType + ' '
+                        spriteSet[value] += 'ShootAvatar' + ' stype=sword '
                     else:
                         if 'swen' not in gameInteractions:
                             spriteSet[value] += avatarType + ' stype=sword '
                             gameInteractions += ['swen']
-                            gameSprites += ['sword']
                 elif value == 'enemy':
                     isEnemy = True
                     rules += space * 2 + spriteSet[value] + '\n'
@@ -225,8 +226,8 @@ def WriteRules(file, rules, path=""):
 
 
 maxDifficulty = 5
-difficulty = 2
-gameNumber = 3
+difficulty = 5
+gameNumber = 7
 probabilityTreasures = 0.1
 probabilityGoal = 0.8
 probResourceGGoal = 0.2
@@ -244,6 +245,7 @@ enemyTypes = ['Immovable', 'RandomNPC', 'Missile']
 possibleSlimeSprites = ['avatar', 'enemy', 'goal', 'treasure', 'resource']
 specialTypeSprites = ['avatar', 'enemy']
 gameTerminations = ['avatar']
+gameSprites += ['sword']
 
 isGoal = False
 isResource = False
@@ -288,8 +290,12 @@ rules = createRules()
 
 gameName = 'thesis0' + str(gameNumber)
 version = 0
-path01 = "/Users/larispardo/Downloads/GVGAI_GYM/gym_gvgai/envs/games/" + gameName + "_v" + str(version) + "/"
-path02 = "/Users/larispardo/Downloads/GVGAI_GYM/gym_gvgai/envs/games/" + gameName + "_v" + str(version + 1) + "/"
+if sys.platform.startswith('win'):
+    gamesPath = 'C:\\Users\\Lenovo\\Envs\\thesis1\\Lib\\site-packages\\gym_gvgai\\envs\\games\\'
+else:
+    gamesPath = "/Users/larispardo/Downloads/GVGAI_GYM/gym_gvgai/envs/games/"
+path01 = gamesPath + gameName + "_v" + str(version) + "/"
+path02 = gamesPath + gameName + "_v" + str(version + 1) + "/"
 
 # Create target directory & all intermediate directories if don't exists
 try:
