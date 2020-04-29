@@ -290,8 +290,11 @@ rules = createRules()
 
 gameName = 'thesis0' + str(gameNumber)
 version = 0
+selector_levs = True
 if sys.platform.startswith('win'):
     gamesPath = 'C:\\Users\\Lenovo\\Envs\\thesis1\\Lib\\site-packages\\gym_gvgai\\envs\\games\\'
+    if selector_levs:
+        gamesPath = 'C:\\Users\\Lenovo\\Documents\\Master\\Thesis\\a2c_gvgai\\data\\test-levels\\Thesis04\\5\\'
 else:
     gamesPath = "/Users/larispardo/Downloads/GVGAI_GYM/gym_gvgai/envs/games/"
 path01 = gamesPath + gameName + "_v" + str(version) + "/"
@@ -328,13 +331,17 @@ onlyOne = ['avatar', 'goal']
 enemyTy = ['enemy' + str(i + 1) for i in range(differentEnemies)]
 gridSize = (20, 20)
 version = 0
-for i in range(10):
-    width, height, enemyAmount, resourceAmount, treasuresAmount = createLevels.GetDifficultyParameters(math.ceil(i / 2),
+
+for i in range(30):
+    width, height, enemyAmount, resourceAmount, treasuresAmount = createLevels.GetDifficultyParameters(round(i / 6),
                                                                                                        gridSize=gridSize,
                                                                                                        isGoal=isGoal)
     level = createLevels.CreateLevel(gridSize, width, height, enemyAmount, resourceAmount,
                                      treasuresAmount, levelMap=levelMap, gridSize=gridSize,
                                      enemyTypes=enemyTy, isGoal=isGoal, isResource=isResource, isTreasure=isTreasure)
+    if selector_levs:
+        createLevels.WriteLevel(level, game=gameName, lvl=i, path=path01)
+        continue
     if i % 5 == 0:
         version += 1
     if version == 1:
